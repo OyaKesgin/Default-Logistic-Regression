@@ -119,3 +119,67 @@ testpred.subset=testpred[default.test$default=="Yes"]
 mean(testpred.subset)
 [1] 0.3168317
  
+ # KNN Classification
+
+testindex=sample(1:10000,5000)
+default.train=Default[-testindex,]
+default.test=Default[testindex,]
+default.lreg=glm(default ~ balance+student,family=binomial,data=default.train)
+testprob=predict(default.lreg,default.test,type="response")
+
+testval=rep(0,5000)
+testval[default.test$default=="Yes"]=1
+testpred=rep(0,5000)
+testpred[testprob>0.05]=1
+confmat=table(testpred,testval)
+(confmat[1,2]+confmat[2,1])/5000
+#0.1022
+confmat[2,2]/(confmat[1,2]+confmat[2,2])
+# 0.8282
+library(class)
+default.train.X=default.train[,-c(1,2)]
+default.train.Y=default.train[,1]
+default.test.X=default.test[,-c(1,2)]
+default.test.Y=default.test[,1]
+
+default.knn=knn(default.train.X,default.test.X,default.train.Y,5)
+confmat=table(default.knn,default.test.Y)
+(confmat[1,2]+confmat[2,1])/5000
+#0.033
+default.train.standX=scale(default.train.X)
+default.test.standX=scale(default.test.X)
+
+n=20
+totalerror=rep(0,n)
+for(i in 1:n)
+{
+  default.knn=knn(default.train.standX,default.test.standX,default.train.Y,i)
+  confmat=table(default.knn,default.test.Y)
+  totalerror[i]=(confmat[1,2]+confmat[2,1])/5000
+}
+kval=seq(1,n)
+plot(kval,totalerror)
+
+# Here is the code to plot the ROC curve
+
+n=20 # specifies the number of threshold values
+truepos=rep(1,n+1)   # Initialize values for true positive and false positive values
+falsepos=rep(1,n+1)
+for(i in 1:n)
+{
+  s=i/(n+1) # sets the value of the threshold s, which varies between 0 and 1 as i goes through 1 to n.
+  # Using n+1 instead of n prevents the exact value s=1. In this case the confusion matrix has
+  # only one row and the code below dows not work. However, for larger n the same will happen due to the
+  # the limited size of the dataset.
+  testpred=rep(0,5000)
+  testpred[testprob>s]=1
+  # for every value s the confusion matrix is calculated and the false and true positive values recorded
+  confmat=table(testpred,testval)
+  truepos[i]=confmat[2,2]/(confmat[1,2]+confmat[2,2])
+  falsepos[i]=confmat[2,1]/(confmat[1,2]+confmat[1,1])
+}
+
+xvals=seq(0,1,length=100) # define vector to plot the slope 1 line (random classiciation) for comparison
+plot(xvals,xvals,type="l",main="ROC",xlab="false positive",ylab="true positive")
+points(falsepos,truepos)
+ 
